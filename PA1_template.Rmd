@@ -1,0 +1,152 @@
+# Analysis of Activity Monitoring Data
+Aleksandra Lyulko
+
+## Introduction
+The present document is an analysis of monitored activity data over 61 day.
+
+## Loading and preprocessing the data
+Load the data:
+
+```{r loaddata}
+activitydata=read.csv("repdata-data-activity\\activity.csv")
+```
+
+## What is the mean number of steps taken per day?
+1) Calculate the total number of steps per day, using the 'tapply' function and date
+as a factor:
+
+```{r stepsperday}
+TotalStepsPerDay = tapply(activitydata$steps, activitydata$date, sum)
+TotalStepsPerDay
+```
+
+2) The difference between a histogram and a barplot is that a barplot creates 
+bars of height corresponding to certain values, while the bars in a histogram
+show the numbers of occurrencies of each value or the number of values in a 
+certain interval.
+
+Plot a histogram of total number of steps per day:
+
+```{r stepsperdayhistogram}
+hist(TotalStepsPerDay, main="Total Steps Per Day")
+```
+
+3) Calculate the mean and median of the total number of steps per day:
+
+```{r meanandmedian}
+MeanPerDay = mean(TotalStepsPerDay, na.rm=TRUE)
+MedianPerDay = median(TotalStepsPerDay, na.rm=TRUE)
+```
+Mean number of steps per day: `r MeanPerDay`.
+Median number of steps per day: `r MedianPerDay`.
+
+## What is the average daily activity pattern?
+
+1) Calculate a vector variable of the number of steps per each 5-minute interval,
+averaged across all days and create a time series plot of the daily activity:
+
+```{r dailypattern}
+DailyPattern=tapply(activitydata$steps, activitydata$interval, mean, na.rm=TRUE)
+timeintervals=as.numeric(names(DailyPattern))
+plot(timeintervals, DailyPattern, type='l', xlab='Time intervals',
+ylab='Number of steps', main='Daily Pattern')
+```
+
+2) On average, the maximum number of steps is contained in the time interval '8:35':
+
+```{r maxstepsinterval}
+which.max(DailyPattern)
+```
+
+## Imputing missing values
+
+1) Calculate the total number of rows with missing values:
+
+```{r missingvalues}
+nasteps = is.na(activitydata$steps)
+MissingValuesSteps = sum(nasteps)
+
+nadays = is.na(activitydata$date)
+MissingValuesDate = sum(nadays)
+
+naintervals = is.na(activitydata$interval)
+MissingValuesInt = sum(naintervals)
+```
+
+The data have `r MissingValuesSteps` missing values in the 'steps' column, 
+`r MissingValuesDate` in the 'date' column and `r MissingValuesInt` column, i.e.,
+only the number of steps are missing and the number rows with missing data is
+2304.
+
+2) Replace the missing steps data with the average value for this particular
+time interval. The data for replacement are taken from the replicated Daily
+Activity pattern.
+
+```{r imputemissingvalues}
+imputedata=activitydata$steps
+replacedata=rep(as.numeric(DailyPattern), 61)
+imputedata[is.na(activitydata$steps) == TRUE] = replacedata[is.na(activitydata$steps) == TRUE]
+```
+
+3) Create a new dataset that is equal to the original dataset but with the
+missing data filled in:
+
+```{r newdata}
+newdata=activitydata
+newdata$steps=imputedata
+```
+
+4) Make a histogram of the total number of steps taken each day:
+
+```{r newhistogram}
+NewStepsPerDay = tapply(newdata$steps, newdata$date, sum)
+hist(NewStepsPerDay, main="Total Steps Per Day, Data Filled In")
+```
+Calculate the new mean and median number of steps per day:
+
+```{r newmeanandmedian}
+NewMeanPerDay = mean(NewStepsPerDay)
+NewMedianPerDay = median(NewStepsPerDay)
+```
+
+The new mean number of steps per day is `r NewMeanPerDay`, the new median 
+number is `r NewMedianPerDay`. The new mean is the same as before imputing
+the data and the new median differs from the old median by only 1. Imputing 
+the data had almost no impact on the new numbers.
+
+## Are there differences in activity patterns between weekdays and weekends?
+
+Create a new factor variable in the dataset with two levels – “Weekday” and
+“Weekend” indicating whether a given date is a weekday or weekend day:
+
+```{r weekdays}
+dates=as.Date(newdata$date)
+newdata$weekend = weekdays(dates)
+newdata$weekend[newdata$weekend == "Monday"] = "Weekday"
+newdata$weekend[newdata$weekend == "Tuesday"] = "Weekday"
+newdata$weekend[newdata$weekend == "Wednesday"] = "Weekday"
+newdata$weekend[newdata$weekend == "Thursday"] = "Weekday"
+newdata$weekend[newdata$weekend == "Friday"] = "Weekday"
+newdata$weekend[newdata$weekend == "Saturday"] = "Weekend"
+newdata$weekend[newdata$weekend == "Sunday"] = "Weekend"
+```
+
+2) Panel plot containing a time series plot of the 5-minute interval (x-axis)
+and the average number of steps taken on weekends and weekdays: 
+
+```{r weekendvsweedayplot}
+weekenddata=newdata[newdata$weekend == "Weekend",]
+weekdaydata=newdata[newdata$weekend == "Weekday",]
+
+AveWEnd=tapply(weekenddata$steps, weekenddata$interval, mean)
+AveWDay=tapply(weekdaydata$steps, weekdaydata$interval, mean)
+
+par(mfrow=c(2,1))
+plot(timeintervals, AveWEnd, type='l', xlab='Time intervals',
+ylab='Number of steps', main='Weekends')
+plot(timeintervals, AveWDay, type='l', xlab='Time intervals',
+ylab='Number of steps', main='Weekdays')
+```
+
+
+
